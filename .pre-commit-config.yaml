@@ -9,7 +9,7 @@ repos:
     sha: 0d79c0c469bab64f7229c9aca2b1186ef47f0e37
     hooks:
     -   id: yapf
-        language_version: python3
+        language_version: python
         files: (.*\.(py|bzl)|BUILD|.*\.BUILD|WORKSPACE)$
 -   repo: https://github.com/pre-commit/pre-commit-hooks
     sha: 5bf6c09bfa1297d3692cadd621ef95f1284e33c0
@@ -51,7 +51,7 @@ repos:
     hooks:
     -   id: copyright_checker
         name: copyright_checker
-        entry: python3 ./tools/codestyle/copyright.hook
+        entry: python ./tools/codestyle/copyright.hook
         language: system
         files: \.(c|cc|cxx|cpp|cu|cl|h|hpp|hxx|proto|py|mm|m|metal)$
         exclude: (?!.*third_party)^.*$|(?!.*book)^.*$
