@@ -55,7 +55,7 @@ class Program {
     NNADAPTER_VLOG(3) << "Creating MagicMind INetwork";
     mm_network_.reset(magicmind::CreateINetwork());
     NNADAPTER_VLOG(3) << "Creating queue";
-    cnrtCreateQueue(&queue_);
+    cnrtQueueCreate(&queue_);
   }
   ~Program();
 

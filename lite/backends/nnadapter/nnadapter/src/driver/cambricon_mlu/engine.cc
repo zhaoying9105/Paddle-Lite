@@ -70,7 +70,7 @@ Context::~Context() {}
 Program::~Program() {
   Clear();
   if (queue_) {
-    MLU_CNRT_CHECK(cnrtDestroyQueue(queue_));
+    MLU_CNRT_CHECK(cnrtQueueDestroy(queue_));
     queue_ = nullptr;
   }
 }
@@ -276,7 +276,7 @@ int Program::Execute(uint32_t input_count,
   }
 
   MLU_MM_CHECK(mm_context_->Enqueue(inputs, &outputs, queue_));
-  MLU_CNRT_CHECK(cnrtSyncQueue(queue_));
+  MLU_CNRT_CHECK(cnrtQueueSync(queue_));
   NNADAPTER_VLOG(3) << "Execute ending.";
   for (uint32_t i = 0; i < output_count; i++) {
     auto& arg = output_arguments[i];

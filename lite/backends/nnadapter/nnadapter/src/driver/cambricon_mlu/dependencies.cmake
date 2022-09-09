@@ -20,11 +20,11 @@ if(NOT DEFINED NNADAPTER_CAMBRICON_MLU_SDK_ROOT)
 endif()
 
 message(STATUS "NNADAPTER_CAMBRICON_MLU_SDK_ROOT: ${NNADAPTER_CAMBRICON_MLU_SDK_ROOT}")
-find_path(CAMBRICON_MLU_SDK_INC NAMES interface_network.h
+find_path(CAMBRICON_MLU_SDK_INC NAMES mm_network.h
   PATHS ${NNADAPTER_CAMBRICON_MLU_SDK_ROOT}/include/
   CMAKE_FIND_ROOT_PATH_BOTH)
 if(NOT CAMBRICON_MLU_SDK_INC)
-  message(FATAL_ERROR "Missing interface_network.h in ${NNADAPTER_CAMBRICON_MLU_SDK_ROOT}/include")
+  message(FATAL_ERROR "Missing mm_network.h in ${NNADAPTER_CAMBRICON_MLU_SDK_ROOT}/include")
 endif()
 
 include_directories("${NNADAPTER_CAMBRICON_MLU_SDK_ROOT}/include/")

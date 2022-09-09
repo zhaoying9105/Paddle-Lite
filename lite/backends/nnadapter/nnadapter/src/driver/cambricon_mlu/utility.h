@@ -16,11 +16,11 @@
 
 #include <cn_api.h>
 #include <cnrt.h>
-#include <common.h>
-#include <interface_builder.h>
-#include <interface_network.h>
-#include <interface_plugin.h>
-#include <interface_runtime.h>
+#include <mm_builder.h>
+#include <mm_common.h>
+#include <mm_network.h>
+#include <mm_plugin.h>
+#include <mm_runtime.h>
 #include <memory>
 #include <vector>
 #include "core/types.h"
