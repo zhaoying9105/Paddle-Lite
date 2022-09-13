@@ -27,7 +27,7 @@
 namespace nnadapter {
 namespace cambricon_mlu {
 
-class NMSFixer : public PatternMatcher {
+class NMSWithGatherFixer : public PatternMatcher {
  public:
   void BuildPattern() override;
   bool HandleMatchedResults(core::Model* model,
@@ -55,7 +55,7 @@ class NMSFixer : public PatternMatcher {
 *       roi_align                                                            roi_align
 */
 // clang-format on
-void NMSFixer::BuildPattern() {
+void NMSWithGatherFixer::BuildPattern() {
   // Operation patterns
   auto concat0_pattern =
       CreatePattern("concat0", NNADAPTER_CONCAT)
@@ -214,8 +214,8 @@ void NMSFixer::BuildPattern() {
   split0_input_patterns >> *split0_pattern >> split0_output_patterns;
 }
 
-bool NMSFixer::HandleMatchedResults(core::Model* model,
-                                    const std::map<std::string, Node*>& nodes) {
+bool NMSWithGatherFixer::HandleMatchedResults(
+    core::Model* model, const std::map<std::string, Node*>& nodes) {
   // Get the operands and operations from the matched subgraph nodes.
   auto concat0_operation = nodes.at("concat0")->operation;
   auto concat0_operand0 = concat0_operation->input_operands[0];
@@ -257,9 +257,154 @@ bool NMSFixer::HandleMatchedResults(core::Model* model,
   return true;
 }
 
+class NMSWithoutGatherFixer : public PatternMatcher {
+ public:
+  void BuildPattern() override;
+  bool HandleMatchedResults(core::Model* model,
+                            const std::map<std::string, Node*>& nodes) override;
+};
+
+// clang-format off
+/*
+*                            3*yolobox   assign                                     3*yolobox
+*                               |          |                                            |
+* 3*yolo_box  assign_value   transpose   transpose0                    3*yolo_box    transpose
+*   |           |                |         |                               |            |
+*        |                          |                                      |            |
+*     concat0                    concat1                                concat0      concat1
+*        |                          |                                      |            |
+*              |                                                                 |
+*        multiclass_nms3                                                  multiclass_nms3
+*        |         |                                                         |       |
+*        |         |                                                         |       |
+*     split0       |                                                      split      |
+*           |      |                                                           |     |
+*           roi_align                                                         roi_align
+*/
+// clang-format on
+void NMSWithoutGatherFixer::BuildPattern() {
+  // Operation patterns
+  auto concat0_pattern =
+      CreatePattern("concat0", NNADAPTER_CONCAT)
+          ->MatchCondition([](const Node* node) -> bool {
+            auto operation = node->operation;
+            return operation && operation->input_operands.size() == 5;
+          });
+  auto transpose0_pattern =
+      CreatePattern("transpose0", NNADAPTER_TRANSPOSE)->IsIntermediate();
+  auto concat1_pattern =
+      CreatePattern("concat1", NNADAPTER_CONCAT)
+          ->MatchCondition([](const Node* node) -> bool {
+            auto operation = node->operation;
+            return operation && operation->input_operands.size() == 5;
+          });
+  auto nms_pattern = CreatePattern("nms", NNADAPTER_NON_MAX_SUPPRESSION)
+                         ->MatchCondition([](const Node* node) -> bool {
+                           auto operation = node->operation;
+                           return operation &&
+                                  operation->input_operands.size() == 11 &&
+                                  operation->output_operands.size() >= 2;
+                         });
+
+  // Operand patterns
+  auto concat0_0 =
+      CreatePattern("concat0_0")->IsOperationInputOperand(NNADAPTER_CONCAT, 0);
+  auto concat0_1 =
+      CreatePattern("concat0_1")->IsOperationInputOperand(NNADAPTER_CONCAT, 1);
+  auto concat0_2 =
+      CreatePattern("concat0_2")->IsOperationInputOperand(NNADAPTER_CONCAT, 2);
+  auto concat0_3 = CreatePattern("concat0_3")
+                       ->IsOperationInputOperand(NNADAPTER_CONCAT, 3)
+                       ->IsIntermediate();
+  auto concat0_axis = CreatePattern("concat0_axis")
+                          ->IsOperationInputOperand(NNADAPTER_CONCAT, 4);
+
+  auto transpose0_input = CreatePattern("transpose0_input")
+                              ->IsOperationInputOperand(NNADAPTER_TRANSPOSE, 0)
+                              ->IsIntermediate();
+  auto transpose0_perm = CreatePattern("transpose0_perm")
+                             ->IsOperationInputOperand(NNADAPTER_TRANSPOSE, 1)
+                             ->IsIntermediate();
+
+  auto concat1_0 =
+      CreatePattern("concat1_0")->IsOperationInputOperand(NNADAPTER_CONCAT, 0);
+  auto concat1_1 =
+      CreatePattern("concat1_1")->IsOperationInputOperand(NNADAPTER_CONCAT, 1);
+  auto concat1_2 =
+      CreatePattern("concat1_2")->IsOperationInputOperand(NNADAPTER_CONCAT, 2);
+  auto concat1_3 = CreatePattern("concat1_3")
+                       ->IsOperationInputOperand(NNADAPTER_CONCAT, 3)
+                       ->IsOperationOutputOperand(NNADAPTER_TRANSPOSE, 0)
+                       ->IsIntermediate();
+  auto concat1_axis = CreatePattern("concat1_axis")
+                          ->IsOperationInputOperand(NNADAPTER_CONCAT, 4);
+
+  auto nms_bboxes =
+      CreatePattern("nms_bboxes")
+          ->IsOperationOutputOperand(NNADAPTER_CONCAT, 0)
+          ->IsOperationInputOperand(NNADAPTER_NON_MAX_SUPPRESSION, 0);
+  auto nms_scores =
+      CreatePattern("nms_scores")
+          ->IsOperationOutputOperand(NNADAPTER_CONCAT, 0)
+          ->IsOperationInputOperand(NNADAPTER_NON_MAX_SUPPRESSION, 1);
+  auto nms_out_index = CreatePattern("nms_out_index");
+  auto gather0_indices =
+      CreatePattern("gather0_indices")
+          ->IsOperationOutputOperand(NNADAPTER_NON_MAX_SUPPRESSION, 2);
+
+  auto split0_input =
+      CreatePattern("split0_input")
+          ->IsOperationOutputOperand(NNADAPTER_NON_MAX_SUPPRESSION, 0);
+
+  // Create the topological connections for the above patterns
+  std::vector<Pattern*> concat0_input_patterns{
+      concat0_0, concat0_1, concat0_2, concat0_3, concat0_axis};
+  std::vector<Pattern*> transpose0_input_patterns{transpose0_input,
+                                                  transpose0_perm};
+  std::vector<Pattern*> concat1_input_patterns{
+      concat1_0, concat1_1, concat1_2, concat1_3, concat1_axis};
+
+  std::vector<Pattern*> nms_input_patterns{nms_bboxes, nms_scores};
+  std::vector<Pattern*> nms_output_patterns{
+      split0_input, nms_out_index, gather0_indices};
+
+  concat0_input_patterns >> *concat0_pattern >> *nms_bboxes;
+  transpose0_input_patterns >> *transpose0_pattern >> *concat1_3;
+  concat1_input_patterns >> *concat1_pattern >> *nms_scores;
+  nms_input_patterns >> *nms_pattern >> nms_output_patterns;
+}
+
+bool NMSWithoutGatherFixer::HandleMatchedResults(
+    core::Model* model, const std::map<std::string, Node*>& nodes) {
+  // Get the operands and operations from the matched subgraph nodes.
+  auto concat0_operation = nodes.at("concat0")->operation;
+  auto concat0_operand0 = concat0_operation->input_operands[0];
+  auto concat0_operand1 = concat0_operation->input_operands[1];
+  auto concat0_operand2 = concat0_operation->input_operands[2];
+  auto concat0_operand3 = concat0_operation->input_operands[3];
+  auto concat0_operand4 = concat0_operation->input_operands[4];
+  concat0_operation->input_operands = {
+      concat0_operand0, concat0_operand1, concat0_operand2, concat0_operand4};
+
+  auto concat1_operation = nodes.at("concat1")->operation;
+  auto concat1_operand0 = concat1_operation->input_operands[0];
+  auto concat1_operand1 = concat1_operation->input_operands[1];
+  auto concat1_operand2 = concat1_operation->input_operands[2];
+  auto concat1_operand3 = concat1_operation->input_operands[3];
+  auto concat1_operand4 = concat1_operation->input_operands[4];
+  concat1_operation->input_operands = {
+      concat1_operand0, concat1_operand1, concat1_operand2, concat1_operand4};
+
+  // The matched intermediate operands and operations will be deleted only when
+  // it returns true
+  return true;
+}
+
 NNADAPTER_EXPORT void FixNonMaxSuppression(core::Model* model) {
-  NMSFixer nms_fixer;
-  nms_fixer.Apply(model);
+  NMSWithGatherFixer nms_fixer0;
+  NMSWithoutGatherFixer nms_fixer1;
+  nms_fixer0.Apply(model);
+  nms_fixer1.Apply(model);
 }
 
 }  // namespace cambricon_mlu
