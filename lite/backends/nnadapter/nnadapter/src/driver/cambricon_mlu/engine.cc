@@ -63,6 +63,20 @@ Context::Context(void* device, const char* properties) : device_(device) {
   } else {
     NNADAPTER_LOG(INFO) << "op convert with default value.";
   }
+  if (key_values.count(
+          CAMBRICON_MLU_FUSION_YOLOBOX_MULTICLASS_NMS3_TO_DETECTION_OUTPUT)) {
+    std::string tmp_str = key_values
+        [CAMBRICON_MLU_FUSION_YOLOBOX_MULTICLASS_NMS3_TO_DETECTION_OUTPUT];
+    if (strcmp(tmp_str.c_str(), "false") == 0 ||
+        strcmp(tmp_str.c_str(), "0") == 0) {
+      fusion_yolobox_multiclass_nms3_to_detection_output = false;
+    } else {
+      fusion_yolobox_multiclass_nms3_to_detection_output = true;
+    }
+  } else {
+    fusion_yolobox_multiclass_nms3_to_detection_output =
+        GetBoolFromEnv(CAMBRICON_MLU_FUSION_YOLOBOX_MULTICLASS_NMS3_TO_DETECTION_OUTPUT);
+  }
 }
 
 Context::~Context() {}
@@ -102,6 +116,14 @@ int Program::Build(core::Model* model, core::Cache* cache) {
   }
   mm_engine_.reset(mm_model_->CreateIEngine());
   mm_context_.reset(mm_engine_->CreateIContext());
+  if(GetBoolFromEnv("DUMP_MM_TENSOR")){
+    NNADAPTER_LOG(WARNING) << "DUMP_MM_TENSOR is ON all tensors in magicmind will dump to mlu_mm_dump_tensors dir";
+    magicmind::IContext::ContextDumpInfo dump_info;
+    dump_info.SetDumpMode(magicmind::IContext::ContextDumpInfo::DumpMode::kAllTensors);
+    dump_info.SetPath("mlu_mm_dump_tensors"); 
+    dump_info.SetFileFormat(magicmind::ContextDumpInfo::FileFormat::kText);
+    mm_context_->SetContextDumpInfo(dump_info);
+  }
   return NNADAPTER_NO_ERROR;
 }
 
@@ -129,7 +151,9 @@ int Program::BuildFromModel(core::Model* model) {
   NNADAPTER_VLOG(5) << "Origin model:" << std::endl << Visualize(model);
   FuseMatMulAddIntoFullyConnected(model);
   FixQuantizedOps(model);
-  FixNonMaxSuppression(model);
+  if(context_->get_fusion_yolobox_multiclass_nms3_to_detection_output()){
+    FixNonMaxSuppression(model);
+  }
   NNADAPTER_VLOG(5) << "Optimized model:" << std::endl << Visualize(model);
   std::stringstream op_params;
   if (!context_->op_params_file_path().empty()) {
@@ -142,6 +166,12 @@ int Program::BuildFromModel(core::Model* model) {
     op_params_file.close();
   }
   Converter converter(&tensors_, mm_network_.get(), op_params.str());
+  NNADAPTER_LOG(INFO)
+      << CAMBRICON_MLU_FUSION_YOLOBOX_MULTICLASS_NMS3_TO_DETECTION_OUTPUT
+      << " is set to "
+      << context_->get_fusion_yolobox_multiclass_nms3_to_detection_output();
+  converter.set_fusion_yolobox_multiclass_nms3_to_detection_output(
+      context_->get_fusion_yolobox_multiclass_nms3_to_detection_output());
   NNADAPTER_CHECK_EQ(converter.Apply(model), NNADAPTER_NO_ERROR);
 
   // Indentify the inputs and outputs
@@ -206,6 +236,11 @@ int Program::BuildFromModel(core::Model* model) {
   memcpy(&model_buffer_[0], &model_version_, version_size);
   MLU_MM_CHECK(mm_model_->SerializeToMemory(model_buffer_.data() + version_size,
                                             model_size));
+     
+  if(GetBoolFromEnv("DUMP_MM_MODEL", false)){
+    NNADAPTER_LOG(WARNING) << "DUMP_MM_MODEL is ON, magicmind model will save to mm_model";
+    MLU_MM_CHECK(mm_model_->SerializeToFile("mm_model"));
+  }
   memcpy(&model_buffer_[version_size + model_size],
          inputs_perm_.data(),
          inputs_perm_size);

@@ -36,6 +36,7 @@ class Context {
   explicit Context(void* device, const char* properties);
   std::string build_config_file_path() { return build_config_file_path_; }
   std::string op_params_file_path() { return op_params_file_path_; }
+  bool get_fusion_yolobox_multiclass_nms3_to_detection_output() { return fusion_yolobox_multiclass_nms3_to_detection_output; }
   ~Context();
 
  private:
@@ -43,6 +44,7 @@ class Context {
   void* context_{nullptr};
   std::string build_config_file_path_ = "";
   std::string op_params_file_path_ = "";
+  bool fusion_yolobox_multiclass_nms3_to_detection_output = false;
 };
 
 class Program {

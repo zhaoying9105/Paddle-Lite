@@ -13,16 +13,21 @@
 // limitations under the License.
 
 #include "operation/roi_align.h"
-#include <plugin_convert_rois.h>
+// #include <plugin_convert_rois.h>
 #include "driver/cambricon_mlu/converter.h"
 #include "utility/debug.h"
 #include "utility/logging.h"
+#include <dlfcn.h>
 
 namespace nnadapter {
 namespace cambricon_mlu {
 
 int ConvertRoiAlign(Converter* converter, core::Operation* operation) {
   ROI_ALIGN_OPERATION_EXTRACT_INPUTS_OUTPUTS
+
+  std::string lib_path = "/usr/local/neuware/lib64/libmagicmind_plugin.so";
+  auto kernel_lib = dlopen(lib_path.c_str(),RTLD_LAZY);
+  NNADAPTER_CHECK(kernel_lib) << "Failed to dlopen " << lib_path;
 
   // Convert to magicmind tensors and node
   auto input_tensor = converter->GetMappedTensor(input_operand);
