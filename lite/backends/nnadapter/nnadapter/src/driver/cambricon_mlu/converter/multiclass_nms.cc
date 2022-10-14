@@ -16,6 +16,8 @@
 #include "operation/non_max_suppression.h"
 #include "utility/debug.h"
 #include "utility/logging.h"
+#include <dlfcn.h>
+// #include "plugin_multiclass_nms3.h"
 namespace nnadapter {
 namespace cambricon_mlu {
 
@@ -32,6 +34,7 @@ int ConvertNonMaxSuppression(Converter* converter, core::Operation* operation) {
     score_tensor = converter->ConvertOperand(scores_operand);
   }
 
+if (converter->get_fusion_yolobox_multiclass_nms3_to_detection_output()){
   auto multiclass_nms_node =
       converter->network()->AddIMulticlassNmsNode(box_tensor, score_tensor);
   NNADAPTER_CHECK(multiclass_nms_node)
@@ -117,7 +120,84 @@ int ConvertNonMaxSuppression(Converter* converter, core::Operation* operation) {
   converter->UpdateTensorMap(output_index_operand, split_v_node->GetOutput(0));
   converter->UpdateTensorMap(output_nms_rois_num_operand,
                              bias_add_node->GetOutput(0));
-  return NNADAPTER_NO_ERROR;
+}else{ // not fusion yolobox and multiclass_nms3 to detection_output, use single op instead
+  std::string lib_path = "/usr/local/neuware/lib64/libmulticlass_nms3_plugin.so";
+  auto kernel_lib = dlopen(lib_path.c_str(),RTLD_LAZY);
+  NNADAPTER_CHECK(kernel_lib) << "Failed to dlopen " << lib_path;
+
+  const std::string plugin_op_name = "PluginMultiClassNMS3";
+  magicmind::TensorMap nms_input_map;
+  nms_input_map["BBoxes"] = std::vector<magicmind::ITensor*>({box_tensor});
+  nms_input_map["Scores"] = std::vector<magicmind::ITensor*>({score_tensor});
+
+  magicmind::DataTypeMap nms_outputs_dtype;
+  nms_outputs_dtype["Out"] = {magicmind::DataType::FLOAT32};
+  nms_outputs_dtype["Index"] = {magicmind::DataType::INT32};
+  nms_outputs_dtype["NmsRoisNum"] = {magicmind::DataType::INT32};
+
+  auto multiclass_nms_node = converter->network()->AddIPluginNode(
+      plugin_op_name, nms_input_map, nms_outputs_dtype);
+  NNADAPTER_CHECK(multiclass_nms_node) << "Failed to add multiclass nms3 node.";
+    multiclass_nms_node->SetAttr("score_threshold", score_threshold);
+    multiclass_nms_node->SetAttr("nms_top_k", (int64_t)nms_top_k);
+    multiclass_nms_node->SetAttr("nms_eta", nms_eta);
+    multiclass_nms_node->SetAttr("background_label", (int64_t)background_label);
+    multiclass_nms_node->SetAttr("nms_threshold", nms_threshold);
+    multiclass_nms_node->SetAttr("keep_top_k", (int64_t)keep_top_k);
+    multiclass_nms_node->SetAttr("normalized", normalized);
+  auto nms_out = multiclass_nms_node->GetOutput(0);
+  auto nms_index = multiclass_nms_node->GetOutput(1);
+  auto nms_nums = multiclass_nms_node->GetOutput(2);
+
+  auto input_dims_ptr = input_operands[0]->type.dimensions.data;
+  auto N = input_dims_ptr[0];
+  int zero = 0;
+  auto axis_node = converter->network()->AddIConstNode(
+      magicmind::DataType::INT32, magicmind::Dims({1}), &zero);
+  NNADAPTER_CHECK(axis_node) << "Failed to add axis const node.";
+  auto begin_node = converter->network()->AddIConstNode(
+      magicmind::DataType::INT32, magicmind::Dims({1}), &zero);
+  NNADAPTER_CHECK(begin_node) << "Failed to add begin const node.";
+  if (N > 1) {
+    auto reduce_node = converter->network()->AddIReduceNode(
+        nms_nums, axis_node->GetOutput(0), magicmind::IReduce::ADD, false);
+    NNADAPTER_CHECK(reduce_node) << "Failed to add reduce node.";
+    auto nms_out_slice_node =
+        converter->network()->AddISliceNode(nms_out,
+                                            begin_node->GetOutput(0),
+                                            reduce_node->GetOutput(0),
+                                            axis_node->GetOutput(0));
+    NNADAPTER_CHECK(nms_out_slice_node) << "Failed to add nms_out slice node.";
+    auto nms_index_slice_node =
+        converter->network()->AddISliceNode(nms_index,
+                                            begin_node->GetOutput(0),
+                                            reduce_node->GetOutput(0),
+                                            axis_node->GetOutput(0));
+    NNADAPTER_CHECK(nms_index_slice_node)
+        << "Failed to add nms_index slice node.";
+    converter->UpdateTensorMap(output_box_operand,
+                               nms_out_slice_node->GetOutput(0));
+    converter->UpdateTensorMap(output_index_operand,
+                               nms_index_slice_node->GetOutput(0));
+    converter->UpdateTensorMap(output_nms_rois_num_operand, nms_nums);
+  } else {
+    // single batch do not need reduce op
+    auto nms_out_slice_node = converter->network()->AddISliceNode(
+        nms_out, begin_node->GetOutput(0), nms_nums, axis_node->GetOutput(0));
+    NNADAPTER_CHECK(nms_out_slice_node) << "Failed to add nms_out slice node.";
+    auto nms_index_slice_node = converter->network()->AddISliceNode(
+        nms_index, begin_node->GetOutput(0), nms_nums, axis_node->GetOutput(0));
+    NNADAPTER_CHECK(nms_index_slice_node)
+        << "Failed to add nms_index slice node.";
+    converter->UpdateTensorMap(output_box_operand,
+                               nms_out_slice_node->GetOutput(0));
+    converter->UpdateTensorMap(output_index_operand,
+                               nms_index_slice_node->GetOutput(0));
+    converter->UpdateTensorMap(output_nms_rois_num_operand, nms_nums);
+  }
+}
+
+return NNADAPTER_NO_ERROR;
 }
 
 }  // namespace cambricon_mlu

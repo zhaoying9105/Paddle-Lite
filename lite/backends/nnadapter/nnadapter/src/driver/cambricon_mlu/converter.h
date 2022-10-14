@@ -60,11 +60,20 @@ class Converter {
   magicmind::ITensor* ConvertOperand(core::Operand* operand,
                                      std::vector<int64_t> dimensions = {});
 
+  void set_fusion_yolobox_multiclass_nms3_to_detection_output(bool enable){
+    fusion_yolobox_multiclass_nms3_to_detection_output = enable;
+  }
+
+  bool get_fusion_yolobox_multiclass_nms3_to_detection_output(){
+    return fusion_yolobox_multiclass_nms3_to_detection_output;
+  }
+
  private:
   // Map NNAdapter operand to magicmind itensor
   std::map<core::Operand*, std::vector<magicmind::ITensor*>>* tensors_;
   magicmind::INetwork* network_;
   std::string op_params_;
+  bool fusion_yolobox_multiclass_nms3_to_detection_output = false;
 };
 
 }  // namespace cambricon_mlu
