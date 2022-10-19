@@ -134,6 +134,13 @@ bool IsDeviceMemory(magicmind::IRTTensor* pointer) {
   }
 }
 
+bool IsDevicePtr(void* pointer) {
+  cnrtPointerAttributes_t attr;
+  cnrtPointerGetAttributes(&attr, pointer);
+  if (attr.type == cnrtMemTypeDevice) return true;
+  return false;
+}
+
 bool IsScalar(magicmind::Dims dim) {
   auto dim_num = dim.GetDimsNum();
   auto element_count = dim.GetElementCount();

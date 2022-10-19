@@ -118,10 +118,10 @@ int Program::Build(core::Model* model, core::Cache* cache) {
   mm_context_.reset(mm_engine_->CreateIContext());
   if(GetBoolFromEnv("DUMP_MM_TENSOR")){
     NNADAPTER_LOG(WARNING) << "DUMP_MM_TENSOR is ON all tensors in magicmind will dump to mlu_mm_dump_tensors dir";
-    magicmind::IContext::ContextDumpInfo dump_info;
-    dump_info.SetDumpMode(magicmind::IContext::ContextDumpInfo::DumpMode::kAllTensors);
+    magicmind::ContextDumpInfo dump_info;
+    dump_info.SetDumpMode(magicmind::ContextDumpInfo::DumpMode::kAllTensors);
     dump_info.SetPath("mlu_mm_dump_tensors"); 
-    dump_info.SetFileFormat(magicmind::IContext::ContextDumpInfo::FileFormat::kText);
+    dump_info.SetFileFormat(magicmind::ContextDumpInfo::FileFormat::kText);
     mm_context_->SetContextDumpInfo(dump_info);
   }
   return NNADAPTER_NO_ERROR;
@@ -285,6 +285,7 @@ int Program::Execute(uint32_t input_count,
   NNADAPTER_VLOG(3) << "Execute begining.";
   std::vector<magicmind::IRTTensor*> inputs = {};
   std::vector<magicmind::IRTTensor*> outputs = {};
+  std::vector<bool> need_free(input_count);
   MLU_MM_CHECK(magicmind::CreateInputTensors(mm_context_.get(), &inputs));
   for (uint32_t i = 0; i < input_count; i++) {
     void* ptr = nullptr;
@@ -297,13 +298,20 @@ int Program::Execute(uint32_t input_count,
     auto buffer = arg.access(arg.memory, &type, nullptr);
     NNADAPTER_CHECK(buffer);
     auto input_tensor = inputs.at(inputs_perm_[i]);
-    if (IsDeviceMemory(input_tensor)) {
+    if (IsDeviceMemory(input_tensor) && !IsDevicePtr(buffer)) {
       auto length = GetOperandTypeBufferLength(type);
       MLU_CNRT_CHECK(cnrtMalloc(&ptr, length));
       MLU_CNRT_CHECK(
           cnrtMemcpy(ptr, buffer, length, CNRT_MEM_TRANS_DIR_HOST2DEV));
-    } else {
+      need_free.at(i) = true;
+    } else if ((IsDeviceMemory(input_tensor) && IsDevicePtr(buffer)) ||
+               (!IsDeviceMemory(input_tensor) && !IsDevicePtr(buffer))) {
       ptr = buffer;
+      need_free.at(i) = false;
+    } else {
+      NNADAPTER_VLOG(3) << " Unsupport position : input_tensor is in device ? " << IsDeviceMemory(input_tensor) << " and tensor buffer is in device ? " << IsDevicePtr(buffer);
+      ptr = buffer;
+      need_free.at(i) = false;
     }
     input_tensor->SetData(ptr);
     input_tensor->SetDimensions(
@@ -335,8 +343,9 @@ int Program::Execute(uint32_t input_count,
     }
   }
 
-  for (auto input : inputs) {
-    if (IsDeviceMemory(input)) {
+  for (uint32_t i = 0; i < input_count; i++) {
+    auto input = inputs.at(i);
+    if (need_free[i]) {
       MLU_CNRT_CHECK(cnrtFree(input->GetMutableData()));
     }
     input->Destroy();

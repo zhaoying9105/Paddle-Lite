@@ -65,6 +65,7 @@ magicmind::Dims ConvertToMagicMindDims(const int32_t* input_dimensions,
                                        uint32_t input_dimensions_count);
 bool IsDeviceMemory(magicmind::IRTTensor* pointer);
 bool IsScalar(magicmind::Dims dim);
+bool IsDevicePtr(void* pointer);
 
 template <typename T>
 struct MMDestroyer {
