@@ -118,10 +118,10 @@ int Program::Build(core::Model* model, core::Cache* cache) {
   mm_context_.reset(mm_engine_->CreateIContext());
   if(GetBoolFromEnv("DUMP_MM_TENSOR")){
     NNADAPTER_LOG(WARNING) << "DUMP_MM_TENSOR is ON all tensors in magicmind will dump to mlu_mm_dump_tensors dir";
-    magicmind::IContext::ContextDumpInfo dump_info;
-    dump_info.SetDumpMode(magicmind::IContext::ContextDumpInfo::DumpMode::kAllTensors);
+    magicmind::ContextDumpInfo dump_info;
+    dump_info.SetDumpMode(magicmind::ContextDumpInfo::DumpMode::kAllTensors);
     dump_info.SetPath("mlu_mm_dump_tensors"); 
-    dump_info.SetFileFormat(magicmind::IContext::ContextDumpInfo::FileFormat::kText);
+    dump_info.SetFileFormat(magicmind::ContextDumpInfo::FileFormat::kText);
     mm_context_->SetContextDumpInfo(dump_info);
   }
   return NNADAPTER_NO_ERROR;
