@@ -121,7 +121,7 @@ int Program::Build(core::Model* model, core::Cache* cache) {
     magicmind::IContext::ContextDumpInfo dump_info;
     dump_info.SetDumpMode(magicmind::IContext::ContextDumpInfo::DumpMode::kAllTensors);
     dump_info.SetPath("mlu_mm_dump_tensors"); 
-    dump_info.SetFileFormat(magicmind::ContextDumpInfo::FileFormat::kText);
+    dump_info.SetFileFormat(magicmind::IContext::ContextDumpInfo::FileFormat::kText);
     mm_context_->SetContextDumpInfo(dump_info);
   }
   return NNADAPTER_NO_ERROR;
