@@ -71,9 +71,9 @@ if(converter->get_fusion_yolobox_multiclass_nms3_to_detection_output()){
   converter->UpdateTensorMap(boxes_operand, boxes_tensor);
   converter->UpdateTensorMap(scores_operand, scores_tensor);
 }else{
-  std::string lib_path = "/usr/local/neuware/lib64/libyolo_box_plugin.so";
-  auto kernel_lib = dlopen(lib_path.c_str(),RTLD_LAZY);
-  NNADAPTER_CHECK(kernel_lib) << "Failed to dlopen " << lib_path;
+  // std::string lib_path = "/usr/local/neuware/lib64/libyolo_box_plugin.so";
+  // auto kernel_lib = dlopen(lib_path.c_str(),RTLD_LAZY);
+  // NNADAPTER_CHECK(kernel_lib) << "Failed to dlopen " << lib_path;
   const std::string plugin_op_name = "PluginYoloBox";
   magicmind::TensorMap yolo_box_input_map;
   yolo_box_input_map["Input"] =

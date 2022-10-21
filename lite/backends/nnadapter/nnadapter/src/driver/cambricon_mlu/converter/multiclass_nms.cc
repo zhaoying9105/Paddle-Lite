@@ -121,9 +121,9 @@ if (converter->get_fusion_yolobox_multiclass_nms3_to_detection_output()){
   converter->UpdateTensorMap(output_nms_rois_num_operand,
                              bias_add_node->GetOutput(0));
 }else{ // not fusion yolobox and multiclass_nms3 to detection_output, use single op instead
-  std::string lib_path = "/usr/local/neuware/lib64/libmulticlass_nms3_plugin.so";
-  auto kernel_lib = dlopen(lib_path.c_str(),RTLD_LAZY);
-  NNADAPTER_CHECK(kernel_lib) << "Failed to dlopen " << lib_path;
+//   std::string lib_path = "/usr/local/neuware/lib64/libmulticlass_nms3_plugin.so";
+//   auto kernel_lib = dlopen(lib_path.c_str(),RTLD_LAZY);
+//   NNADAPTER_CHECK(kernel_lib) << "Failed to dlopen " << lib_path;
 
   const std::string plugin_op_name = "PluginMultiClassNMS3";
   magicmind::TensorMap nms_input_map;
