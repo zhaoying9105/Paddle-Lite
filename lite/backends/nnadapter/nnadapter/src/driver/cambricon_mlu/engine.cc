@@ -19,6 +19,7 @@
 #include <limits>
 #include <utility>
 #include <vector>
+#include <dlfcn.h>
 #include "driver/cambricon_mlu/converter.h"
 #include "driver/cambricon_mlu/optimizer/convert_datalayout_nchw_to_nhwc.h"
 #include "driver/cambricon_mlu/optimizer/fix_non_max_suppression.h"
@@ -101,6 +102,19 @@ void Program::Clear() {
 }
 
 int Program::Build(core::Model* model, core::Cache* cache) {
+  // load mm plugins
+  std::string yolo_box_lib_path = "/usr/local/neuware/lib64/libyolo_box_plugin.so";
+  auto yolo_box_kernel_lib = dlopen(yolo_box_lib_path.c_str(),RTLD_LAZY);
+  NNADAPTER_CHECK(yolo_box_kernel_lib) << "Failed to dlopen " << yolo_box_lib_path;
+
+  std::string nms_lib_path = "/usr/local/neuware/lib64/libmulticlass_nms3_plugin.so";
+  auto nms_kernel_lib = dlopen(nms_lib_path.c_str(),RTLD_LAZY);
+  NNADAPTER_CHECK(nms_kernel_lib) << "Failed to dlopen " << nms_lib_path;
+
+  std::string convert_rois_lib_path = "/usr/local/neuware/lib64/libmagicmind_plugin.so";
+  auto convert_rois_kernel_lib = dlopen(convert_rois_lib_path.c_str(),RTLD_LAZY);
+  NNADAPTER_CHECK(convert_rois_kernel_lib) << "Failed to dlopen " << convert_rois_lib_path;
+
   Clear();
   if (model && cache->dir && cache->token) {
     dump_graph_path_ = string_format("%s/%s.dat", cache->dir, cache->token);
@@ -128,6 +142,7 @@ int Program::Build(core::Model* model, core::Cache* cache) {
 }
 
 int Program::BuildFromCache(core::Cache* cache) {
+
   input_types_ = cache->input_types;
   output_types_ = cache->output_types;
   auto input_count = cache->input_types.size();
