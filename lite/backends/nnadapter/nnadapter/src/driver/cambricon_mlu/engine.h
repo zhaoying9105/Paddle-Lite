@@ -95,6 +95,8 @@ class Program {
   std::string dump_graph_path_;
   std::vector<uint8_t>* dump_graph_buffer_{nullptr};
   std::vector<uint8_t> model_buffer_;
+  bool enable_mm_profile_ = false;
+  magicmind::IProfiler * profiler_;
   float model_version_ = 1.0f;
 };
 

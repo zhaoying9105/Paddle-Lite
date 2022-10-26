@@ -21,6 +21,7 @@
 #include <mm_network.h>
 #include <mm_plugin.h>
 #include <mm_runtime.h>
+#include <mm_profiler.h>
 #include <memory>
 #include <vector>
 #include "core/types.h"
