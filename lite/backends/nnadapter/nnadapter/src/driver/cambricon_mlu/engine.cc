@@ -83,6 +83,12 @@ Context::Context(void* device, const char* properties) : device_(device) {
 Context::~Context() {}
 
 Program::~Program() {
+  if(enable_mm_profile_){
+    profiler_->Stop();
+    NNADAPTER_LOG(WARNING) << "magicmind profile stop...";
+    profiler_->Destroy();
+    NNADAPTER_LOG(WARNING) << "magicmind profile destory...";
+  }
   Clear();
   if (queue_) {
     MLU_CNRT_CHECK(cnrtQueueDestroy(queue_));
@@ -137,6 +143,19 @@ int Program::Build(core::Model* model, core::Cache* cache) {
     dump_info.SetPath("mlu_mm_dump_tensors"); 
     dump_info.SetFileFormat(magicmind::ContextDumpInfo::FileFormat::kText);
     mm_context_->SetContextDumpInfo(dump_info);
+  }
+  enable_mm_profile_ = GetBoolFromEnv("ENABLE_MM_PROFILE");
+  if (enable_mm_profile_){
+    std::string profile_log_dir = "mm_profile_log";
+    NNADAPTER_LOG(WARNING) << "ENABLE_MM_PROFILE is set true, magicmind profile log will write to mm_profile_log dir";
+    magicmind::ProfilerOptions options;
+    options.SetHostTracerLevel(magicmind::HostTracerLevel::kVerbose);
+    options.SetDeviceTracerLevel(magicmind::DeviceTracerLevel::kOn);
+    profiler_ = magicmind::CreateIProfiler(options,profile_log_dir.c_str());
+    profiler_->Start();
+    NNADAPTER_LOG(WARNING) << "magicmind profile start...";
+  }else{
+    NNADAPTER_LOG(WARNING) << "ENABLE_MM_PROFILE is false";
   }
   return NNADAPTER_NO_ERROR;
 }
@@ -333,8 +352,17 @@ int Program::Execute(uint32_t input_count,
         ConvertToMagicMindDims(type.dimensions.data, type.dimensions.count));
   }
 
+  if(enable_mm_profile_){
+    // FIXME(zhaoying): batch size is set to 1 just for now
+    profiler_->StepBegin(1);
+    NNADAPTER_LOG(WARNING) << "magicmind profile step begin...";
+  }
   MLU_MM_CHECK(mm_context_->Enqueue(inputs, &outputs, queue_));
   MLU_CNRT_CHECK(cnrtQueueSync(queue_));
+  if(enable_mm_profile_){
+    profiler_->StepEnd(); 
+    NNADAPTER_LOG(WARNING) << "magicmind profile step end...";
+  }
   NNADAPTER_VLOG(3) << "Execute ending.";
   for (uint32_t i = 0; i < output_count; i++) {
     auto& arg = output_arguments[i];
