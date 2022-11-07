@@ -682,7 +682,8 @@ void MixedPrecisionAutoInsertCalibFuser::InsertQuantCalib(
       if (pre_arg_node->inlinks.empty()) continue;
       auto pre_inst_node = pre_arg_node->inlinks.front();
       auto pre_op_type = pre_inst_node->AsStmt().op_type();
-      if (IsQuantInstNode(pre_inst_node) ||
+      if (!HasItem(nodes_org, pre_inst_node) ||
+          IsQuantInstNode(pre_inst_node) ||
           HasItem(skip_pre_ops, pre_op_type)) {
         continue;
       }

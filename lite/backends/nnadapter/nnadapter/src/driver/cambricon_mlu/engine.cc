@@ -24,6 +24,7 @@
 #include "driver/cambricon_mlu/optimizer/convert_datalayout_nchw_to_nhwc.h"
 #include "driver/cambricon_mlu/optimizer/fix_non_max_suppression.h"
 #include "driver/cambricon_mlu/optimizer/fix_quantized_ops.h"
+#include "driver/cambricon_mlu/optimizer/fix_transpose.h"
 #include "optimizer/fuse_matmul_add_into_fully_connected.h"
 #include "utility/debug.h"
 #include "utility/logging.h"
@@ -185,6 +186,7 @@ int Program::BuildFromModel(core::Model* model) {
   NNADAPTER_VLOG(5) << "Origin model:" << std::endl << Visualize(model);
   FuseMatMulAddIntoFullyConnected(model);
   FixQuantizedOps(model);
+  FixTranspose(model);
   if(context_->get_fusion_yolobox_multiclass_nms3_to_detection_output()){
     FixNonMaxSuppression(model);
   }
