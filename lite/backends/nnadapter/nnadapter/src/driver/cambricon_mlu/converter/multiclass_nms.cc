@@ -129,6 +129,8 @@ if (converter->get_fusion_yolobox_multiclass_nms3_to_detection_output()){
   magicmind::TensorMap nms_input_map;
   nms_input_map["BBoxes"] = std::vector<magicmind::ITensor*>({box_tensor});
   nms_input_map["Scores"] = std::vector<magicmind::ITensor*>({score_tensor});
+  box_tensor->SetTensorName("multiclass_nms3_bboxes");
+  score_tensor->SetTensorName("multiclass_nms3_scores");
 
   magicmind::DataTypeMap nms_outputs_dtype;
   nms_outputs_dtype["Out"] = {magicmind::DataType::FLOAT32};
@@ -180,6 +182,9 @@ if (converter->get_fusion_yolobox_multiclass_nms3_to_detection_output()){
     converter->UpdateTensorMap(output_index_operand,
                                nms_index_slice_node->GetOutput(0));
     converter->UpdateTensorMap(output_nms_rois_num_operand, nms_nums);
+    nms_out_slice_node->GetOutput(0)->SetTensorName("multiclass_nms3_output_box");
+    nms_index_slice_node->GetOutput(0)->SetTensorName("multiclass_nms3_output_index");
+    nms_nums->SetTensorName("multiclass_nms3_output_nms_rois_num");
   } else {
     // single batch do not need reduce op
     auto nms_out_slice_node = converter->network()->AddISliceNode(
@@ -194,6 +199,9 @@ if (converter->get_fusion_yolobox_multiclass_nms3_to_detection_output()){
     converter->UpdateTensorMap(output_index_operand,
                                nms_index_slice_node->GetOutput(0));
     converter->UpdateTensorMap(output_nms_rois_num_operand, nms_nums);
+    nms_out_slice_node->GetOutput(0)->SetTensorName("multiclass_nms3_output_box");
+    nms_index_slice_node->GetOutput(0)->SetTensorName("multiclass_nms3_output_index");
+    nms_nums->SetTensorName("multiclass_nms3_output_nms_rois_num");
   }
 }
 

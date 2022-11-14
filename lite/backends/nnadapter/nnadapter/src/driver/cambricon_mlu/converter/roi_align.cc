@@ -57,6 +57,8 @@ int ConvertRoiAlign(Converter* converter, core::Operation* operation) {
   // Roi align
   auto roi_align_node = converter->network()->AddIRoiAlignNode(
       {input_tensor}, {convert_rois_out_tensor});
+  input_tensor->SetTensorName("roi_align_input");
+  convert_rois_out_tensor->SetTensorName("roi_align_boxes");
   NNADAPTER_CHECK(roi_align_node) << "Failed to add roi_align node.";
   magicmind::Layout input_layout =
       ConvertToMagicMindDataLayout(input_operand->type.layout);

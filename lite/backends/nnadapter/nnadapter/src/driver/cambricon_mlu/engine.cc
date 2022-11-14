@@ -139,9 +139,23 @@ int Program::Build(core::Model* model, core::Cache* cache) {
   mm_engine_.reset(mm_model_->CreateIEngine());
   mm_context_.reset(mm_engine_->CreateIContext());
   if(GetBoolFromEnv("DUMP_MM_TENSOR")){
-    NNADAPTER_LOG(WARNING) << "DUMP_MM_TENSOR is ON all tensors in magicmind will dump to mlu_mm_dump_tensors dir";
+    NNADAPTER_LOG(WARNING) << "DUMP_MM_TENSOR is ON";
     magicmind::ContextDumpInfo dump_info;
-    dump_info.SetDumpMode(magicmind::ContextDumpInfo::DumpMode::kAllTensors);
+    std::string tensor_name = GetStringFromEnv("DUMP_MM_TENSOR_NAME");
+    auto dump_mode = magicmind::ContextDumpInfo::DumpMode::kAllTensors;
+    if (tensor_name.size() > 0){
+      NNADAPTER_LOG(WARNING) << "DUMP_MM_TENSOR_NAME is set " << tensor_name << "will be dumped to mlu_mm_dump_tensors dir, is dump multi tensor, split names by comma";
+      dump_mode = magicmind::ContextDumpInfo::DumpMode::kSpecificTensors;
+      auto tensor_names = string_split<std::string>(tensor_name,",");
+      if(tensor_names.size() == 0){
+        NNADAPTER_LOG(FATAL) << "DUMP_MM_TENSOR_NAME is tensor_name, seems error";
+      }else{
+        dump_info.SetTensorNames(tensor_names);
+      }
+    }else{
+      NNADAPTER_LOG(WARNING) << "DUMP_MM_TENSOR_NAME is not set, all tensors in magicmind will dump to mlu_mm_dump_tensors dir";
+    }
+    dump_info.SetDumpMode(dump_mode);
     dump_info.SetPath("mlu_mm_dump_tensors"); 
     dump_info.SetFileFormat(magicmind::ContextDumpInfo::FileFormat::kText);
     mm_context_->SetContextDumpInfo(dump_info);
