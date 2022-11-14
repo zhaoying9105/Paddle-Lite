@@ -25,7 +25,6 @@
 #include "driver/cambricon_mlu/optimizer/fix_non_max_suppression.h"
 #include "driver/cambricon_mlu/optimizer/fix_quantized_ops.h"
 #include "driver/cambricon_mlu/optimizer/fix_transpose.h"
-#include "optimizer/constant_fold_operations.h"
 #include "optimizer/fuse_matmul_add_into_fully_connected.h"
 #include "utility/debug.h"
 #include "utility/logging.h"
@@ -202,7 +201,6 @@ int Program::BuildFromModel(core::Model* model) {
   FuseMatMulAddIntoFullyConnected(model);
   FixQuantizedOps(model);
   FixTranspose(model);
-  ConstantFoldOperations(model);
   if(context_->get_fusion_yolobox_multiclass_nms3_to_detection_output()){
     FixNonMaxSuppression(model);
   }
