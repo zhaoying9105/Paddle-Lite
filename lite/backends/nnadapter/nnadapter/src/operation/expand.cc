@@ -61,11 +61,14 @@ NNADAPTER_EXPORT void UpdateExpandInferOutputShape(
     } else {
       // input = [10, 2], shape_data = [3,4,-1,-1]
       // --> output_dimensions_data = [3,4,10,2]
-      NNADAPTER_CHECK_EQ(shape_data[i], -1)
-          << "When the value in shape is negative for expand_v2 op, "
-             "only -1 is supported, but the value received is "
-          << shape_data[i];
-      output_dimensions_data[i] = input_shape[i];
+      if (shape_data[i] == -1) {
+        output_dimensions_data[i] = input_shape[i];
+      } else if (shape_data[i] == -65535) {
+        output_dimensions_data[i] = shape_data[i];
+      } else {
+        NNADAPTER_VLOG(5) << "When the value in shape is negative for expand_v2 op, only -1 is supported, but the value received is "
+                          << shape_data[i];
+      }
     }
   }
 }
