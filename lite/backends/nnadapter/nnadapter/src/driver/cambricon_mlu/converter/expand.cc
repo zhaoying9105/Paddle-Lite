@@ -24,8 +24,6 @@ namespace cambricon_mlu {
 
 int ConvertExpand(Converter* converter, core::Operation* operation) {
   EXPAND_OPERATION_EXTRACT_INPUTS_OUTPUTS
-  NNADAPTER_CHECK(IsConstantOperand(shape_operand))
-      << "Shape input only support const tensor.";
 
   // Convert to magicmind tensors and node
   auto input_tensor = converter->GetMappedTensor(input_operand);

@@ -85,6 +85,9 @@ int ConvertConv2D(Converter* converter, core::Operation* operation) {
               {filter_scale, 0}, 8, "symmetric");
       auto filter = conv_node->GetInput(1);
       filter->SetDynamicRange(filter_tensor_range, true);
+    } else {
+      conv_node->SetPrecision(0, magicmind::DataType::FLOAT32);
+      conv_node->SetPrecision(1, magicmind::DataType::FLOAT32);
     }
 
     auto output_tensor = conv_node->GetOutput(0);
