@@ -240,15 +240,15 @@ bool NMSWithGatherFixer::HandleMatchedResults(
   auto concat2_operand1 = concat2_operation->input_operands[1];
   auto concat2_operand2 = concat2_operation->input_operands[2];
   auto nms_operation = nodes.at("nms")->operation;
-  auto nms_index_operand = nms_operation->output_operands[2];
+  nms_operation->type = NNADAPTER_NMS_WITH_ALL_SCORE;
   auto concat2_out_operand = concat2_operation->output_operands[0];
+  concat2_operand0->type.dimensions.data[1] = concat2_out_operand->type.dimensions.data[1];
   concat2_operation->input_operands = {
-      concat2_operand0, nms_index_operand, concat2_operand2};
-  concat2_out_operand->type.dimensions.data[1] = 7;
+      concat2_operand0, concat2_operand2};
 
   auto split_operation = nodes.at("split0")->operation;
   auto axis_operand = split_operation->input_operands[1];
-  core::Operand* split_size_operand = AddInt32ConstantOperand(model, {2, 4, 1});
+  core::Operand* split_size_operand = AddInt32ConstantOperand(model, {2, 4, 15});
   split_operation->input_operands = {
       concat2_out_operand, axis_operand, split_size_operand};
 

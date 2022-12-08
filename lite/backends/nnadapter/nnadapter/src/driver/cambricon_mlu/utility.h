@@ -25,6 +25,7 @@
 #include <memory>
 #include <vector>
 #include "core/types.h"
+#include "driver/cambricon_mlu/operation/type.h"
 
 namespace nnadapter {
 namespace cambricon_mlu {
