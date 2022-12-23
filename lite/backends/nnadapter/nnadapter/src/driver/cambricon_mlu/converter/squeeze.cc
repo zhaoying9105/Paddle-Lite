@@ -28,7 +28,10 @@ int ConvertSqueeze(Converter* converter, core::Operation* operation) {
   if (!input_tensor) {
     input_tensor = converter->ConvertOperand(input_operand);
   }
-  auto axis_tensor = converter->ConvertOperand(axes_operand);
+  magicmind::ITensor * axis_tensor = nullptr;
+  if(axes_operand){
+    auto axis_tensor = converter->ConvertOperand(axes_operand);
+  }
   auto squeeze_node =
       converter->network()->AddISqueezeNode(input_tensor, axis_tensor);
   NNADAPTER_CHECK(squeeze_node) << "Failed to add squeeze node.";
