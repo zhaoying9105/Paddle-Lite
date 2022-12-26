@@ -87,12 +87,23 @@ int ConvertFullyConnected(Converter* converter, core::Operation* operation) {
         {input_scale, 0}, 8, "symmetric");
     auto input = matmul_node->GetInput(0);
     input->SetDynamicRange(input_tensor_range, true);
-
-    float filter_scale = weight_operand->type.symm_per_layer_params.scale;
-    auto filter_tensor_range = magicmind::UniformQuantParamToRangeWithQuantAlg(
-        {filter_scale, 0}, 8, "symmetric");
     auto filter = matmul_node->GetInput(1);
-    filter->SetDynamicRange(filter_tensor_range, true);
+    if (weight_operand->type.precision == NNADAPTER_QUANT_INT8_SYMM_PER_CHANNEL) {
+      float* filter_scales = weight_operand->type.symm_per_channel_params.scales;
+      int scale_count = weight_operand->type.symm_per_channel_params.scale_count;
+      std::vector<magicmind::Range> filter_ranges;
+      for (size_t i = 0; i < scale_count; i++) {
+        auto filter_tensor_range = magicmind::UniformQuantParamToRangeWithQuantAlg({filter_scales[i], 0}, 8, "symmetric");
+        filter_ranges.push_back(filter_tensor_range);
+      }
+      filter->SetDynamicRangePerAxis(filter_ranges, true);
+    } else if (weight_operand->type.precision == NNADAPTER_QUANT_INT8_SYMM_PER_LAYER) {
+      float filter_scale = weight_operand->type.symm_per_layer_params.scale;
+      auto filter_tensor_range = magicmind::UniformQuantParamToRangeWithQuantAlg({filter_scale, 0}, 8, "symmetric");
+      filter->SetDynamicRange(filter_tensor_range, true);
+    } else {
+      NNADAPTER_LOG(FATAL) << "fully_connected's input operand is quantized while filter is not";
+    }
   } else {
     matmul_node->SetPrecision(0, magicmind::DataType::FLOAT32);
     matmul_node->SetPrecision(1, magicmind::DataType::FLOAT32);
