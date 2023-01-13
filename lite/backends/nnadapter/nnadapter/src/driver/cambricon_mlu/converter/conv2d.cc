@@ -36,13 +36,20 @@ int ConvertConv2D(Converter* converter, core::Operation* operation) {
                      output_channel_size);
   magicmind::ITensor* bias_tensor = nullptr;
   auto bias_tmp_tensor = converter->ConvertOperand(bias_operand);
-  if (input_operand->type.precision == NNADAPTER_QUANT_INT8_SYMM_PER_LAYER) {
-    auto cast_node = converter->network()->AddICastNode(
-        bias_tmp_tensor, magicmind::DataType::FLOAT32);
+  if (bias_operand->type.precision == NNADAPTER_QUANT_INT32_SYMM_PER_CHANNEL ||
+      bias_operand->type.precision == NNADAPTER_QUANT_INT32_SYMM_PER_LAYER) {
+    auto cast_node = converter->network()->AddICastNode(bias_tmp_tensor, magicmind::DataType::FLOAT32);
     auto cast_out_tensor = cast_node->GetOutput(0);
 
-    float bias_scale = bias_operand->type.symm_per_layer_params.scale;
-    auto scale_tensor = converter->AddFloat32ConstantTensor(&bias_scale, {1});
+    // for per layer quant
+    float* bias_scale = &bias_operand->type.symm_per_layer_params.scale;
+    int scale_count = 1;
+    if (bias_operand->type.precision == NNADAPTER_QUANT_INT32_SYMM_PER_CHANNEL) {
+      // for per channel quant
+      bias_scale = bias_operand->type.symm_per_channel_params.scales;
+      scale_count = bias_operand->type.symm_per_channel_params.scale_count;
+    }
+    auto scale_tensor = converter->AddFloat32ConstantTensor(bias_scale, {scale_count});
     auto dequantize_node = converter->network()->AddIElementwiseNode(
         cast_out_tensor, scale_tensor, magicmind::IElementwise::MUL);
     auto dequant_out_tensor = dequantize_node->GetOutput(0);
