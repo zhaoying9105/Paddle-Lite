@@ -111,17 +111,17 @@ void Program::Clear() {
 
 int Program::Build(core::Model* model, core::Cache* cache) {
   // load mm plugins
-  std::string yolo_box_lib_path = "/usr/local/neuware/lib64/libyolo_box_plugin.so";
-  auto yolo_box_kernel_lib = dlopen(yolo_box_lib_path.c_str(),RTLD_LAZY);
-  NNADAPTER_CHECK(yolo_box_kernel_lib) << "Failed to dlopen " << yolo_box_lib_path;
+  // std::string yolo_box_lib_path = "/usr/local/neuware/lib64/libyolo_box_plugin.so";
+  // auto yolo_box_kernel_lib = dlopen(yolo_box_lib_path.c_str(),RTLD_LAZY);
+  // NNADAPTER_CHECK(yolo_box_kernel_lib) << "Failed to dlopen " << yolo_box_lib_path;
 
-  std::string nms_lib_path = "/usr/local/neuware/lib64/libmulticlass_nms3_plugin.so";
-  auto nms_kernel_lib = dlopen(nms_lib_path.c_str(),RTLD_LAZY);
-  NNADAPTER_CHECK(nms_kernel_lib) << "Failed to dlopen " << nms_lib_path;
+  // std::string nms_lib_path = "/usr/local/neuware/lib64/libmulticlass_nms3_plugin.so";
+  // auto nms_kernel_lib = dlopen(nms_lib_path.c_str(),RTLD_LAZY);
+  // NNADAPTER_CHECK(nms_kernel_lib) << "Failed to dlopen " << nms_lib_path;
 
-  std::string convert_rois_lib_path = "/usr/local/neuware/lib64/libmagicmind_plugin.so";
-  auto convert_rois_kernel_lib = dlopen(convert_rois_lib_path.c_str(),RTLD_LAZY);
-  NNADAPTER_CHECK(convert_rois_kernel_lib) << "Failed to dlopen " << convert_rois_lib_path;
+  // std::string convert_rois_lib_path = "/usr/local/neuware/lib64/libmagicmind_plugin.so";
+  // auto convert_rois_kernel_lib = dlopen(convert_rois_lib_path.c_str(),RTLD_LAZY);
+  // NNADAPTER_CHECK(convert_rois_kernel_lib) << "Failed to dlopen " << convert_rois_lib_path;
 
   Clear();
   if (model && cache->dir && cache->token) {
